@@ -24,8 +24,7 @@ if not API_KEY:
     raise ValueError("API_KEY is not set in .env file")
 print('Complete')
 
-#URLs to be used for JSON requests
-print('URL set')
+#URLs
 measurementsURL = "https://api.openaq.org/v3/measurements"
 headers = {'X-API-Key': API_KEY}
 locationsURL = "https://api.openaq.org/v3/locations"
@@ -35,12 +34,12 @@ locationsURL = "https://api.openaq.org/v3/locations"
 parameters = ["pm25", "pm10", "no2", "o3"]
 date_from = "2025-09-01T00:00:00Z"
 date_to   = "2025-09-07T23:59:59Z"
-limit = 50
+limit = 200
 MaximumRetries = 5
-WaitTime = 1
+WaitTime = 2
 print('Parameters set')
 
-#check/create raw directory.
+#check raw directory exists.
 RawDir = Path("data/raw")
 RawDir.mkdir(parents=True, exist_ok=True)
 
@@ -50,49 +49,70 @@ print("Fetching New England locations...")
 
 locations = []
 page = 1
-params = {
-    "coordinates": bbox,
-    "limit": 1000,  # fetch as many as possible per page
-    "page": 1
-}
-response = requests.get(locationsURL, headers=headers, params=params, timeout=30)
-response.raise_for_status()
-results = response.json()
 
-locations = results.get("results", [])
-page += 1
+while True:
+    params = {'coordinates': bbox, 'limit': limit, 'page': page}
+    try:
+        response = requests.get(locationsURL, params=params, headers=headers)
+        response.raise_for_status()
+        results = response.json().get('results')
+        if not results:
+            break
+        locations.extend(results)
+        print('Fetched {} locations'.format(len(results)))
+        page += 1
+    except requests.exceptions.RequestException as e:
+        print(f'Request failed for locations page {page}: {e}')
+        time.sleep(WaitTime)
+        continue
 
-print(f"Found {len(locations)} locations in New England.")
 
 sensor_ids = []
 for loc in locations:
     for sensor in loc.get("sensors", []):
         sensor_ids.append(sensor["id"])
+print('Fetched {} sensors'.format(len(sensor_ids)))
 
-print(f"Prepared {len(sensorFetch)} sensors to fetch data from.")
 
 for sensor_id in sensor_ids:
+    print('Fetching measurements for {}'.format(sensor_id))
     page = 1
     while True:
         params = {
             "sensor_id": sensor_id,
             "parameter": ",".join(parameters),
-            "date_from": "2023-01-01T00:00:00Z",
-            "date_to": "2023-01-07T23:59:59Z",
-            "limit": 200,
+            "date_from": date_from,
+            "date_to": date_to,
+            "limit": limit,
             "page": page
         }
-        resp = requests.get(measurementsURL, headers=headers, params=params)
-        if resp.status_code == 404:
-            break
-        resp.raise_for_status()
-        results = resp.json().get("results", [])
-        if not results:
+        retry = 0
+        success = False
+        while retry < MaximumRetries and not success:
+            try:
+                response = requests.get(measurementsURL, params=params, headers=headers)
+                if response.status_code == 404:
+                    success = True
+                    break
+                response.raise_for_status()
+                results = response.json().get('results')
+                if not results:
+                    success = True
+                    break
+
+                filePath = RawDir.joinpath(f"Measurements_Sensor_{sensor_id}.json")
+                SaveJSON(filePath, results)
+                print('Measurements saved to {}'.format(filePath))
+                page += 1
+                success = True
+            except requests.exceptions.RequestException as e:
+                print(f'Request failed for measurements page {page}: {e}')
+                retry += 1
+                wait = retry * WaitTime
+                time.sleep(wait)
+        if not success or not results:
             break
 
-        # Save or process results here
-        print(f"Sensor {sensor_id} page {page} returned {len(results)} measurements")
-        page += 1
 
 print("US data fetch complete.")
 

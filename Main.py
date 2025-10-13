@@ -168,8 +168,6 @@ for sensor in allSensors:
 
     logging.info(f"Done — {total_measurements} total measurements")
 
-exit(1)
-
 logging.info("Data fetch complete!")
 
 

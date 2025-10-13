@@ -1,2 +1,5 @@
 /.env
 __pychache__/
+data/raw
+data/clean
+

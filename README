@@ -1,11 +1,36 @@
-# Air Quality Data Pipeline
+Air Quality Data Pipeline
+Overview
 
-## Overview
-This Python script fetches, validates, and stores daily air quality data (PM2.5, PM10, NO2, O3) for Maine, New Hampshire, and Vermont using the OpenAQ API.
+This program fetches and cleans daily air quality data (PM2.5, PM10, NO2, O3) for Maine, New Hampshire, and Vermont using the OpenAQ API.
 
-## Setup
-1. Clone this repository.
-2. Create and activate a virtual environment.
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+Setup
+Install Python 3.13 or newer.
+Create and activate a virtual environment.
+
+Install requirements:
+pip install -r requirements.txt
+
+Enter your API Key within the .env file.
+
+Usage
+Run from the command line:
+python main.py --start 2025-09-01T00:00:00Z --end 2025-09-07T23:59:59Z --limit 200
+
+Files and Folders
+data/raw/ - raw JSONL files from API
+data/clean/ - cleaned CSV output
+data/fetch.log - log file for each run
+.env - holds your API key (excluded from git)
+main.py - main script
+
+What It Does
+Fetches data from OpenAQ by sensor and day.
+Saves raw data to data/raw/.
+Cleans and filters PM2.5 and O3 data.
+Saves results to data/clean/ as a CSV.
+Logs all activity and errors.
+
+Notes
+Uses .env for API key (not stored in code).
+Handles retries and rate limits.
+Known issue: some 500 errors from OpenAQ servers.

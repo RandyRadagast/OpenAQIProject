@@ -1,36 +1,85 @@
 Air Quality Data Pipeline
-Overview
 
-This program fetches and cleans daily air quality data (PM2.5, PM10, NO2, O3) for Maine, New Hampshire, and Vermont using the OpenAQ API.
+Overview
+This project automatically fetches and cleans daily air quality data (PM2.5 and O3) for the state of Maine using the OpenAQ API. It stores raw JSONL data, cleans and aggregates it into CSV files, and generates a Plotly visualization of the most recent three weeks.
 
 Setup
+
 Install Python 3.13 or newer.
+
 Create and activate a virtual environment.
 
-Install requirements:
+Install dependencies with:
 pip install -r requirements.txt
 
-Enter your API Key within the .env file.
+Create a .env file containing your OpenAQ API key in the format:
+OPENAQ_API_KEY=your_key_here
 
 Usage
-Run from the command line:
-python main.py --start 2025-09-01T00:00:00Z --end 2025-09-07T23:59:59Z --limit 200
+To run manually from the command line:
+python main.py
 
 Files and Folders
 data/raw/ - raw JSONL files from API
-data/clean/ - cleaned CSV output
+data/clean/ - cleaned CSV files
 data/fetch.log - log file for each run
-.env - holds your API key (excluded from git)
-main.py - main script
+viz/viz.py - generates visualization
+.env - holds your API key (excluded from git, .env.example use in its place)
+main.py - main ingestion and cleaning script
+RunPipeline.sh - CRON script
+requirements.txt - required libraries to run.
 
 What It Does
-Fetches data from OpenAQ by sensor and day.
-Saves raw data to data/raw/.
-Cleans and filters PM2.5 and O3 data.
-Saves results to data/clean/ as a CSV.
-Logs all activity and errors.
+Fetches sensor and daily measurements from OpenAQ for Maine.
+Saves raw JSONL to data/raw/.
+Cleans and validates PM2.5 and O3 data, removing duplicates.
+Saves cleaned CSV to data/clean/cleaned_data_YYYY-MM-DD.csv.
+Merges all cleaned files into data_store.csv.
+Generates an interactive Plotly chart of the past three weeks, provided data is available.
 
-Notes
-Uses .env for API key (not stored in code).
-Handles retries and rate limits.
-Known issue: some 500 errors from OpenAQ servers.
+Scheduling (CRON)
+The OpenAQ API updates daily around midnight EST. This pipeline runs once daily at 11:00 UTC (6:00 AM EST) to ensure the new data is available before fetching.
+
+Cron Line:
+0 11 * * * /absolute/path/to/project/run_pipeline.sh >> /absolute/path/to/project/data/logs/cron_$(date +\%F).log 2>&1
+
+Cron Excerpt:
+Tue Oct 21 10:00:00 UTC 2025: Lock file created successfully at /home/obelisk/Projects/PythonProject1/.job.lock
+Tue Oct 21 10:00:00 UTC 2025: Starting OpenAQ pipeline...
+2025-10-21 10:00:00,152 [INFO] Fetching key
+2025-10-21 10:00:00,159 [INFO] Key retrieved
+2025-10-21 10:00:00,160 [INFO] Parameters set
+2025-10-21 10:00:00,161 [INFO] Starting data fetch for ME
+2025-10-21 10:00:03,950 [INFO] ME page 1: fetched 8 locations.
+...
+2025-10-21 10:00:59,600 [INFO] Loaded 400 combined rows from recent cleaned files
+2025-10-21 10:01:00,050 [INFO] Prepared 55 daily rows for plotting
+Tue Oct 21 10:01:00 UTC 2025: Pipeline completed successfully.
+Tue Oct 21 10:01:00 UTC 2025: Lock file removed /home/obelisk/Projects/PythonProject1/.job.lock
+
+Runbook
+Logs are stored in /data/raw/ as fetch_YYYY-MM-DD.log.
+To run manually: bash RunPipeline.sh
+To pause: comment out the cron line using crontab -e.
+To resume: uncomment the same line.
+
+Visualization
+To regenerate the chart manually:
+python viz/viz.py
+This reads the latest three weeks of cleaned data and produces viz/chart.html.
+
+Chart Interpretation
+Each line represents a unique sensor in Maine.
+PM2.5 and O3 values are averaged daily.
+Hover tooltips show sensor name and measurement.
+The chart helps identify daily air quality trends and anomalies.
+
+Troubleshooting
+If cron fails, check fetch_YYYY-MM-DD.log for errors.
+Ensure .env exists and contains a valid OpenAQ API key.
+Use absolute paths in RunPipeline.sh.
+Check permissions if the lock file .job.lock is not removed automatically.
+
+Security
+No secrets are stored in the repository.
+The .env file and local data directories are excluded via .gitignore.

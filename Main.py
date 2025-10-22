@@ -9,17 +9,22 @@ import pandas as pd
 from dotenv import load_dotenv
 import argparse
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 #google and reddit have saved my butt several times through this.
 
+#check raw directory exists.
+RawDir = Path("data/raw")
+RawDir.mkdir(parents=True, exist_ok=True)
+
 #Setting up logging?
+today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("data/fetch.log"), #writing to Log file.
+        logging.FileHandler(f"data/fetch_{today}.log"), #writing to Log file.
         logging.StreamHandler()
     ]
 )
@@ -73,11 +78,18 @@ parser.add_argument('--start', help='Start Date in ISO Format', default='2025-09
 parser.add_argument('--end',help='End Date in ISO Format', default='2025-09-07T23:59:59Z')
 parser.add_argument('--limit',type=int,help='Records Per Page', default=200)
 args = parser.parse_args()
-date_from = args.start
-date_to = args.end
+
+
+# determine yesterday’s UTC range
+today_utc = datetime.now(ZoneInfo("UTC"))
+yesterday_utc = today_utc - timedelta(days=1)
+date_from = yesterday_utc.strftime("%Y-%m-%dT00:00:00Z")
+date_to = today_utc.strftime("%Y-%m-%dT00:00:00Z")
+
+
 limit = args.limit
-print('start date:', args.start)
-print('end date:', args.end)
+print('start date:', date_from)
+print('end date:', date_to)
 print('limit:', args.limit)
 
 
@@ -85,9 +97,7 @@ MaximumRetries = 5
 WaitTime = 2
 logging.info('Parameters set')
 
-#check raw directory exists.
-RawDir = Path("data/raw")
-RawDir.mkdir(parents=True, exist_ok=True)
+
 
 #check the cleaned directory exists, create if it doesn't
 CleanDir = Path("data/clean")
@@ -96,122 +106,121 @@ CleanDir.mkdir(parents=True, exist_ok=True)
 locations = []
 allSensors = []
 
-# logging.info("Starting data fetch for ME)")
-# for state, bbox in state_bboxes.items():
-#     logging.info(f"Fetching {state} (bbox: {bbox})")
-#     page = 1
-#     retry = 0
-#
-#     while True:
-#         params = {"bbox": bbox, "limit": limit, "page": page}
-#         try:
-#             retry+=1
-#             response = requests.get(locationsURL, headers=headers, params=params, timeout=30)
-#
-#             if response.status_code == 429:
-#                 logging.warning(f"{state} page {page}: rate limit hit, sleeping 10s")
-#                 time.sleep(10)
-#                 continue
-#             elif response.status_code >= 500:
-#                 logging.error(f"{state} page {page}: server error {response.status_code}, skipping.")
-#                 break
-#
-#             response.raise_for_status()
-#             results = response.json().get("results", [])
-#             if not results:
-#                 logging.info(f"{state}: no more results after page {page-1}")
-#                 break
-#
-#             #Iterate over each location to pull sensor information
-#             for loc in results:
-#                 for sensor in loc.get("sensors", []):
-#                     sensor_info = {
-#                         "state": state,
-#                         "location_id": loc.get("id"),
-#                         "sensor_id": sensor.get("id"),
-#                         "parameter": sensor.get("parameter"),
-#                         "sensor_name": loc.get("name"),
-#                         "coordinates": loc.get("coordinates"),
-#                     }
-#                     allSensors.append(sensor_info)
-#
-#             logging.info(f"{state} page {page}: fetched {len(results)} locations.")
-#
-#             #Store avail sensors
-#             locations.extend(results)
-#             page += 1
-#             time.sleep(WaitTime)
-#
-#         except requests.exceptions.RequestException as e:
-#             if retry >= MaximumRetries:
-#                 logging.error(f"{state} page {page}: Request Failed {e}, Maximum attempts reached: Skipping.")
-#                 break
-#             else:
-#                 retry+=1
-#                 logging.warning(f"{state} page {page}: request failed ({e}), retrying...")
-#                 time.sleep(WaitTime * retry)
-#                 continue
-#
-# logging.info(f"Finished fetching. Total locations: {len(locations)}")
-#
-# for sensor in allSensors:
-#     sensor_id = sensor["sensor_id"]
-#     sensor_name = sensor["sensor_name"]
-#     state = sensor["state"]
-#
-#     logging.info(f"Pulling data for {sensor_name} ({state}) sensor {sensor_id}")
-#     page = 1
-#     total_measurements = 0
-#     retry = 0
-#     WaitTime = 2
-#     today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
-#
-#     while True:
-#         params = {
-#             "date_from": date_from,
-#             "date_to": date_to,
-#             "limit": limit,
-#             "page": page
-#         }
-#         URL = f"https://api.openaq.org/v3/sensors/{sensor_id}/days"
-#         try:
-#             resp = requests.get(URL, headers=headers, params=params, timeout=30)
-#             if resp.status_code == 404:
-#                 logging.warning(f"Sensor {sensor_id} not found.")
-#                 break
-#
-#             resp.raise_for_status()
-#             results = resp.json().get("results", [])
-#             if not results:
-#                 logging.info(f"{sensor_id}: no more results after page {page - 1}")
-#                 break
-#
-#             total_measurements += len(results)
-#             RawFilePath = RawDir / f"{today}.jsonl"
-#             SaveJSON(RawFilePath, results, sensor_id=sensor_id, sensor_name=sensor_name, location_id=sensor.get("location_id"), state=state)
-#
-#             logging.info(f"Page {page}: saved {len(results)} measurements to {RawFilePath}")
-#
-#             page += 1
-#             time.sleep(1)
-#
-#         except requests.exceptions.RequestException as e:
-#             if retry >= MaximumRetries:
-#                 logging.error(f'Error fetching sensor {sensor_id} page {page}: Request Failed {e}, Maximum attempts reached. Moving on.')
-#                 break
-#             else:
-#                 retry+=1
-#                 logging.error(f"Error fetching sensor {sensor_id} page {page}: {e} retrying...")
-#                 time.sleep(WaitTime * retry)
-#             continue
-#
-#     logging.info(f"Done — {total_measurements} total measurements")
-# logging.info("Data fetch complete!")
+logging.info("Starting data fetch for ME")
+for state, bbox in state_bboxes.items():
+    logging.info(f"Fetching {state} (bbox: {bbox})")
+    page = 1
+    retry = 0
+
+    while True:
+        params = {"bbox": bbox, "limit": limit, "page": page}
+        try:
+            response = requests.get(locationsURL, headers=headers, params=params, timeout=30)
+
+            if response.status_code == 429:
+                logging.warning(f"{state} page {page}: rate limit hit, sleeping 10s")
+                time.sleep(10)
+                continue
+            elif response.status_code >= 500:
+                logging.error(f"{state} page {page}: server error {response.status_code}, skipping.")
+                break
+
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            if not results:
+                logging.info(f"{state}: no more results after page {page-1}")
+                break
+
+            #Iterate over each location to pull sensor information
+            for loc in results:
+                for sensor in loc.get("sensors", []):
+                    sensor_info = {
+                        "state": state,
+                        "location_id": loc.get("id"),
+                        "sensor_id": sensor.get("id"),
+                        "parameter": sensor.get("parameter"),
+                        "sensor_name": loc.get("name"),
+                        "coordinates": loc.get("coordinates"),
+                    }
+                    allSensors.append(sensor_info)
+
+            logging.info(f"{state} page {page}: fetched {len(results)} locations.")
+
+            #Store avail sensors
+            locations.extend(results)
+            page += 1
+            time.sleep(WaitTime)
+
+        except requests.exceptions.RequestException as e:
+            retry+=1
+            if retry >= MaximumRetries:
+                logging.error(f"{state} page {page}: Request Failed {e}, Maximum attempts reached: Skipping.")
+                break
+            else:
+                logging.warning(f"{state} page {page}: request failed ({e}), retrying...")
+                time.sleep(WaitTime * retry)
+                continue
+
+logging.info(f"Finished fetching. Total locations: {len(locations)}")
+
+for sensor in allSensors:
+    sensor_id = sensor["sensor_id"]
+    sensor_name = sensor["sensor_name"]
+    state = sensor["state"]
+
+    logging.info(f"Pulling data for {sensor_name} ({state}) sensor {sensor_id}")
+    page = 1
+    total_measurements = 0
+    retry = 0
+    WaitTime = 2
+    today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
+
+    while True:
+        params = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "limit": limit,
+            "page": page
+        }
+        URL = f"https://api.openaq.org/v3/sensors/{sensor_id}/days"
+        try:
+            resp = requests.get(URL, headers=headers, params=params, timeout=30)
+            if resp.status_code == 404:
+                logging.warning(f"Sensor {sensor_id} not found.")
+                break
+
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            if not results:
+                logging.info(f"{sensor_id}: no more results after page {page - 1}")
+                break
+
+            total_measurements += len(results)
+            RawFilePath = RawDir / f"{today}.jsonl"
+            SaveJSON(RawFilePath, results, sensor_id=sensor_id, sensor_name=sensor_name, location_id=sensor.get("location_id"), state=state)
+
+            logging.info(f"Page {page}: saved {len(results)} measurements to {RawFilePath}")
+
+            page += 1
+            time.sleep(1)
+
+        except requests.exceptions.RequestException as e:
+            if retry >= MaximumRetries:
+                logging.error(f'Error fetching sensor {sensor_id} page {page}: Request Failed {e}, Maximum attempts reached. Moving on.')
+                break
+            else:
+                retry+=1
+                logging.error(f"Error fetching sensor {sensor_id} page {page}: {e} retrying...")
+                time.sleep(WaitTime * retry)
+            continue
+
+    logging.info(f"Done — {total_measurements} total measurements")
+logging.info("Data fetch complete!")
 
 
 #Cleaning time.
 
-today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
+
 
 #Defining file just created
 NewFile = RawDir / f'{today}.jsonl'

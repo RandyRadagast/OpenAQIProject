@@ -41,7 +41,7 @@ Scheduling (CRON)
 The OpenAQ API updates daily around midnight EST. This pipeline runs once daily at 11:00 UTC (6:00 AM EST) to ensure the new data is available before fetching.
 
 Cron Line:
-0 11 * * * /absolute/path/to/project/run_pipeline.sh >> /absolute/path/to/project/data/logs/cron_$(date +\%F).log 2>&1
+0 11 * * * /absolute/path/to/project/run_pipeline.sh >> /absolute/path/to/project/data/raw/fetch_YYYY-MM-DD.log
 
 Cron Excerpt:
 Tue Oct 21 10:00:00 UTC 2025: Lock file created successfully at /home/obelisk/Projects/PythonProject1/.job.lock

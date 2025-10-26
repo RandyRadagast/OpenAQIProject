@@ -11,6 +11,7 @@ import argparse
 import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+import subprocess, sys
 
 #google and reddit have saved my butt several times through this.
 
@@ -293,7 +294,7 @@ df.to_csv(storePath, index=False)
 logging.info(f"Clean data saved to {storePath}")
 
 
-
+subprocess.run([sys.executable, str(Path(__file__).resolve().parent/'viz'/'viz.py')], check=False)
 
 
 

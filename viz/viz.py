@@ -66,7 +66,7 @@ if missing:
 
 df["datetime_from"] = pd.to_datetime(df["datetime_from"], errors="coerce", utc=True)
 df = df.dropna(subset=["datetime_from", "avg_value", "sensor_name"])
-df = df[df["sensor_tag"].isin(["pm25", "o3", "rh"])]
+df = df[df["sensor_tag"].isin(["pm25", "o3", "relativehumidity"])]
 
 if df.empty:
     logging.error("No valid data after filtering (pm25, o3, rh).")

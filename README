@@ -1,85 +1,129 @@
 Air Quality Data Pipeline
 
 Overview
-This project automatically fetches and cleans daily air quality data (PM2.5 and O3) for the state of Maine using the OpenAQ API. It stores raw JSONL data, cleans and aggregates it into CSV files, and generates a Plotly visualization of the most recent three weeks.
+This project automates the retrieval, cleaning, and visualization of daily air quality data (PM2.5 and O₃) for the state of Maine using the OpenAQ API. It includes two implementations:
+A Python-based pipeline for scripted execution and Cron scheduling.
+An n8n workflow that reproduces the same functionality using a node-based automation platform.
+The system ingests sensor data, validates and deduplicates records, stores clean CSV files, and generates an interactive Plotly visualization of the most recent three weeks of measurements.
 
 Setup
 
+Python Environment
 Install Python 3.13 or newer.
 
-Create and activate a virtual environment.
+Create and activate a virtual environment:
+python -m venv .venv
+source .venv/bin/activate # or .venv\Scripts\activate on Windows
 
-Install dependencies with:
+Install dependencies:
 pip install -r requirements.txt
 
-Create a .env file containing your OpenAQ API key in the format:
+Create a .env file containing your OpenAQ API key:
 OPENAQ_API_KEY=your_key_here
 
-Usage
-To run manually from the command line:
-python main.py
+n8n Environment
+Run n8n (cloud). This workflow was developed and tested with n8n v1.117.3.
+
+Import the exported workflow file from:
+workflows/OpenAQ_AirQuality_Workflow.json
+
+Configure your OpenAQ API key using n8n’s Credentials Manager (stored securely — no secrets in the repo).
+
+Optional: enable Cron Trigger to match the Python job schedule (daily at 11:00 UTC).
 
 Files and Folders
-data/raw/ - raw JSONL files from API
-data/clean/ - cleaned CSV files
-data/fetch.log - log file for each run
-viz/viz.py - generates visualization
-.env - holds your API key (excluded from git, .env.example use in its place)
-main.py - main ingestion and cleaning script
-RunPipeline.sh - CRON script
-requirements.txt - required libraries to run.
+data/raw/ → Raw JSONL files from API
+data/clean/ → Cleaned CSV outputs
+data/fetch.log → Log file per run
+viz/viz.py → Visualization generator (Plotly)
+viz/chart.html → Interactive visualization
+RunPipeline.sh → Cron wrapper script
+requirements.txt → Python dependencies
+workflows/ → Exported n8n workflow JSON
+.env.example → API key template
 
 What It Does
-Fetches sensor and daily measurements from OpenAQ for Maine.
-Saves raw JSONL to data/raw/.
-Cleans and validates PM2.5 and O3 data, removing duplicates.
-Saves cleaned CSV to data/clean/cleaned_data_YYYY-MM-DD.csv.
-Merges all cleaned files into data_store.csv.
-Generates an interactive Plotly chart of the past three weeks, provided data is available.
+
+Python Job
+Fetches daily OpenAQ sensor data for Maine.
+Cleans and validates PM2.5 and O₃ data.
+Removes duplicates based on sensor_id + datetime_from.
+Saves results to:
+data/clean/cleaned_data_YYYY-MM-DD.csv
+data/clean/data_store.csv (aggregated)
+Generates an HTML Plotly chart (viz/chart.html) showing daily averages per sensor.
+
+n8n Workflow
+Recreates the same stages using n8n nodes:
+Python Stage → n8n Node(s)
+Cron / Trigger → Manual Trigger → Cron
+Fetch Locations → HTTP Request (GET /locations)
+Extract Sensors → Code (JavaScript)
+Fetch Measurements → Split In Batches → HTTP Request (GET /sensors/{id}/days)
+Pagination → IF → Set → Wait (loop)
+Validation → Function (filter missing/invalid)
+Dedupe → Code (filter unique sensor_id + datetime_from)
+Persistence → Move Binary Data → Write Binary File
+Visualization → Optional external step calling viz.py
+Error Handling → Error Trigger (logs to file)
 
 Scheduling (CRON)
-The OpenAQ API updates daily around midnight EST. This pipeline runs once daily at 11:00 UTC (6:00 AM EST) to ensure the new data is available before fetching.
+The OpenAQ API updates daily around midnight EST.
+The Python pipeline runs once daily at 11:00 UTC (6:00 AM EST).
 
-Cron Line:
-0 11 * * * /absolute/path/to/project/run_pipeline.sh >> /absolute/path/to/project/data/raw/fetch_YYYY-MM-DD.log
+Cron line example:
+0 11 * * * /absolute/path/to/project/RunPipeline.sh >> /absolute/path/to/project/data/raw/fetch_$(date +%F).log 2>&1
 
-Cron Excerpt:
-Tue Oct 21 10:00:00 UTC 2025: Lock file created successfully at /home/obelisk/Projects/PythonProject1/.job.lock
-Tue Oct 21 10:00:00 UTC 2025: Starting OpenAQ pipeline...
-2025-10-21 10:00:00,152 [INFO] Fetching key
-2025-10-21 10:00:00,159 [INFO] Key retrieved
-2025-10-21 10:00:00,160 [INFO] Parameters set
-2025-10-21 10:00:00,161 [INFO] Starting data fetch for ME
-2025-10-21 10:00:03,950 [INFO] ME page 1: fetched 8 locations.
-...
-2025-10-21 10:00:59,600 [INFO] Loaded 400 combined rows from recent cleaned files
-2025-10-21 10:01:00,050 [INFO] Prepared 55 daily rows for plotting
-Tue Oct 21 10:01:00 UTC 2025: Pipeline completed successfully.
-Tue Oct 21 10:01:00 UTC 2025: Lock file removed /home/obelisk/Projects/PythonProject1/.job.lock
+n8n Cron node:
+Equivalent schedule configured as:
+Every day at 11:00 UTC
 
 Runbook
-Logs are stored in /data/raw/ as fetch_YYYY-MM-DD.log.
-To run manually: bash RunPipeline.sh
-To pause: comment out the cron line using crontab -e.
-To resume: uncomment the same line.
+
+**DONT FORGET TO PUT YOUR STUFF HERE**
 
 Visualization
-To regenerate the chart manually:
-python viz/viz.py
-This reads the latest three weeks of cleaned data and produces viz/chart.html.
+The visualization displays daily averages of PM2.5 and O₃ per sensor across the past three weeks.
 
 Chart Interpretation
-Each line represents a unique sensor in Maine.
-PM2.5 and O3 values are averaged daily.
-Hover tooltips show sensor name and measurement.
-The chart helps identify daily air quality trends and anomalies.
+Each colored line = one sensor location in Maine.
+Hover tooltips show sensor name and measurement values.
+Useful for identifying air quality trends and anomalies.
+
+To regenerate manually:
+python viz/viz.py
+
+Outputs to:
+viz/chart.html
+
+n8n Workflow Overview
+
+Flow Diagram:
+
+Outputs
+
+data/clean/cleaned_data_YYYY-MM-DD.csv
+
+data/clean/data_store.csv
+
+Optional outputs/summary_PM25.csv or summary_O3.csv
 
 Troubleshooting
-If cron fails, check fetch_YYYY-MM-DD.log for errors.
-Ensure .env exists and contains a valid OpenAQ API key.
-Use absolute paths in RunPipeline.sh.
-Check permissions if the lock file .job.lock is not removed automatically.
+
+404 / empty pages → verify sensor_id and date range logic.
+429 rate limits → increase Wait node delay to 300–500ms.
+No chart output → confirm data_store.csv exists and contains recent data.
 
 Security
-No secrets are stored in the repository.
-The .env file and local data directories are excluded via .gitignore.
+
+No API keys or tokens in code or repo.
+
+.env and data directories excluded via .gitignore.
+
+n8n credentials are not stored. credentials manager errors.
+
+Version & License
+Python: 3.13
+n8n: 1.117.3 (Cloud)
+API: OpenAQ v3
+License: MIT

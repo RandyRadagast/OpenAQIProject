@@ -1,0 +1,612 @@
+{
+  "name": "OpenAQ Maine - Autopipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        -96
+      ],
+      "id": "d57af1d6-399f-4395-a6ce-2eac31700f03",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openaq.org/v3/locations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "bbox",
+              "value": "=-71.1,43.0,-66.9,47.5"
+            },
+            {
+              "name": "limit",
+              "value": "=100"
+            },
+            {
+              "name": "page",
+              "value": "=1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "38928759fa584b153bd0d6b2ae4279e1db9622f03ebfae74373bb9989688c46e"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        144,
+        -96
+      ],
+      "id": "12f94ec6-476d-42d0-bdec-7442ca0a2c9c",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "11a2bb6b-df0f-418a-abb1-84d7b44be44a",
+              "leftValue": "=={{$json.results && $json.results.length > 0}}",
+              "rightValue": "={{ $json.results.length > 0 }}\n",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -160
+      ],
+      "id": "7935a8ad-b92d-4ac9-b989-fc6d61ca2567",
+      "name": "Check for Results"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ],
+      "id": "36c04628-1646-444d-b3af-1217ca065df0",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        784,
+        -608
+      ],
+      "id": "91ae386f-2266-4e39-ba4e-c2c4e71303b7",
+      "name": "Iterate over each sensor."
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        -352
+      ],
+      "id": "d2c58fc9-c3a0-46cc-bb97-650f9cf183cc",
+      "name": "Wait",
+      "webhookId": "305cb395-2aab-41df-9220-61a0349e1a83"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4018565e-b166-4aa2-aee3-2ad7fe41d0a3",
+              "name": "page",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "4d059c86-e91e-480f-81bc-6507f8a992ee",
+              "name": "limit",
+              "value": 200,
+              "type": "number"
+            },
+            {
+              "id": "e4f71737-c97c-4606-a407-9e6d787ec904",
+              "name": "dateFrom",
+              "value": "={{ $now.minus({ days: 1 }).startOf('day').toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "9a2539cf-e048-4f60-9058-9f63a33a20df",
+              "name": "dateTo",
+              "value": "={{ $now.startOf('day').toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "2ce7447e-4306-40b7-bc84-c5a0801be2e5",
+              "name": "sensor_id",
+              "value": "={{ $json.sensor_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        -592
+      ],
+      "id": "483bf26f-d3a8-488a-bdcc-85fc006c23ce",
+      "name": "Batch it!"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "11a2bb6b-df0f-418a-abb1-84d7b44be44a",
+              "leftValue": "=={{$json.results && $json.results.length > 0}}",
+              "rightValue": "={{ $json.results.length > 0 }}\n",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        -352
+      ],
+      "id": "2d85f74a-6994-4ae4-8ca3-98f92dc4f39c",
+      "name": "Check for Results1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn one sensor-days API response into one row per day.\n// Keeps identity from the incoming itemm\n\nconst out = [];\n\nfor (const item of items) {\n\n  const sensorId   = item.json.sensor_id;\n  const sensorName = item.json.sensor_name;\n  const locationId = item.json.location_id;\n  const carriedTag = item.json.sensor_tag;\n  const payload = item.json.results ?? item.json;\n\n  const rows = Array.isArray(payload)\n    ? payload\n    : (payload && payload.period ? [payload] : []);\n\n  for (const r of rows) {\n    const avg   = r?.summary?.avg;\n    const tag   = r?.parameter?.name ?? carriedTag;\n    const fromU = r?.period?.datetimeFrom?.utc;\n    const toU   = r?.period?.datetimeTo?.utc;\n\n    // strict filter: need id, tag, avg, datetime_from\n    if (!sensorId || avg == null || !fromU || !tag) continue;\n\n    out.push({\n      json: {\n        sensor_id:   sensorId,\n        sensor_name: sensorName ?? 'Unknown',\n        location_id: locationId ?? null,\n        sensor_tag:  tag,\n        avg_value:   Number(avg),\n        datetime_from: String(fromU),\n        datetime_to:   toU ? String(toU) : null\n      }\n    });\n  }\n}\n\nreturn out.length ? out : [{ json: { note: 'No valid rows produced in Flatten' } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -368
+      ],
+      "id": "cd6852c3-77f6-496d-bba8-5e0a3ae789dd",
+      "name": "Flatten"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1728,
+        -624
+      ],
+      "id": "c7f931f0-d527-421d-8ce6-35d5a7adf319",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.openaq.org/v3/sensors/{{$json.sensor_id}}/days",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "date_from",
+              "value": "={{ $json.dateFrom}}"
+            },
+            {
+              "name": "date_to",
+              "value": "={{ $json.dateTo}}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit}}"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page}}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "38928759fa584b153bd0d6b2ae4279e1db9622f03ebfae74373bb9989688c46e"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        -352
+      ],
+      "id": "beebcf67-ce8d-46bf-a3fc-cb5193e19a7c",
+      "name": "Daily each Sensor",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst now = new Date();                    // current time\nconst todayUTC = new Date(now.toISOString());  // normalize\nconst y = new Date(todayUTC);\ny.setUTCDate(todayUTC.getUTCDate() - 1);\n\n//format to YYYY-MM-DDT00:00:00Z\nfunction isoMidnightUTC(d) {\n  const copy = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));\n  return copy.toISOString().replace('.000Z', 'Z');\n}\n\nconst date_from = isoMidnightUTC(y);\nconst date_to   = isoMidnightUTC(todayUTC);\n\nreturn [\n  {\n    json: {\n      bbox: \"-71.1,43.0,-66.9,47.5\", // Maine\n      limit: 100,\n      date_from,\n      date_to,\n      pageStart: 1,\n      pageMax: 10   // safety cap; we’ll stop early when no results\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        -96
+      ],
+      "id": "170d15c5-5414-460e-8dae-b2093fb42ee1",
+      "name": "Set Date"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $json;\nconst pages = [];\nfor (let p = cfg.pageStart; p <= cfg.pageMax; p++) {\n  pages.push({ bbox: cfg.bbox, limit: cfg.limit, page: p });\n}\nreturn pages.map(p => ({ json: { ...p } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        -96
+      ],
+      "id": "c0fa233a-a3fe-422a-95a7-d51944cb8867",
+      "name": "Build Pages"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- helpers: UTC midnight ISO without any leading \"=\" ---\nfunction isoMidnightUTC(d) {\n  const y = d.getUTCFullYear();\n  const m = String(d.getUTCMonth() + 1).padStart(2, '0');\n  const day = String(d.getUTCDate()).padStart(2, '0');\n  return `${y}-${m}-${day}T00:00:00Z`;\n}\n\n// today/yesterday (UTC) windows\nconst now = new Date();\nconst todayMidnightUTC = new Date(Date.UTC(\n  now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0\n));\nconst yesterdayMidnightUTC = new Date(todayMidnightUTC.getTime() - 24 * 60 * 60 * 1000);\n\nconst date_from = isoMidnightUTC(yesterdayMidnightUTC);\nconst date_to   = isoMidnightUTC(todayMidnightUTC);\n\n// keep only these parameters\nconst KEEP = new Set(['pm25', 'o3', 'relativehumidity']);\n\nconst out = [];\nconst seen = new Set(); // de-dupe by sensor_id across pages/items\n\n// Support either: items with {results:[locations...]} OR single location items\nfunction* iterLocations(item) {\n  const res = item.json?.results;\n  if (Array.isArray(res)) {\n    for (const loc of res) yield loc;\n  } else if (item.json && item.json.id && Array.isArray(item.json.sensors)) {\n    yield item.json; // single location shape\n  }\n}\n\nfor (const item of items) {\n  for (const loc of iterLocations(item)) {\n    const locId   = loc?.id;\n    const locName = loc?.name ?? 'Unknown';\n    const sensors = Array.isArray(loc?.sensors) ? loc.sensors : [];\n\n    for (const s of sensors) {\n      const sensorId = s?.id;\n      const tagName =\n        (s?.parameter && typeof s.parameter === 'object' ? s.parameter.name : s?.parameter) || null;\n\n      if (!sensorId || !tagName || !KEEP.has(tagName)) continue;\n\n      // avoid duplicates if the same sensor shows up more than once\n      if (seen.has(sensorId)) continue;\n      seen.add(sensorId);\n\n      out.push({\n        json: {\n          // paging & window (numbers stay numbers)\n          limit: 200,\n          page: 1,\n          date_from,\n          date_to,\n\n          // identity for downstream calls\n          sensor_id:   sensorId,\n          sensor_name: locName,\n          location_id: locId,\n          sensor_tag:  tagName\n        }\n      });\n    }\n  }\n}\n\nreturn out.length ? out : [{ json: { warning: 'No sensors extracted after filtering (pm25, o3, relativehumidity).' } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -368
+      ],
+      "id": "0503e0ba-b2db-47c6-998b-e559f537a75d",
+      "name": "Extract Sensors"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a404882c-6d8d-4272-bf16-4dda0853c21c",
+              "name": "page",
+              "value": "={{ (Number($json.page) || 1) + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "selected",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1840,
+        -176
+      ],
+      "id": "16306c92-48e3-4922-9e0b-3ede38385140",
+      "name": "Next Page"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Expect items shaped like the Python cleaned rows:\n// sensor_id, sensor_name, location_id, sensor_tag, avg_value, datetime_from, datetime_to\n\nconst seen = new Set();\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const sid = j.sensor_id;\n  const dt  = j.datetime_from;  \n  \n  if (sid != null && dt) {\n    const key = `${sid}|${dt}`;\n    if (!seen.has(key)) {\n      seen.add(key);\n      out.push({ json: {\n        sensor_id: j.sensor_id,\n        sensor_name: j.sensor_name,\n        location_id: j.location_id,\n        sensor_tag: j.sensor_tag,\n        avg_value: j.avg_value,\n        datetime_from: j.datetime_from,\n        datetime_to: j.datetime_to\n      }});\n    }\n  }\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        -624
+      ],
+      "id": "9ee5385b-deaf-45f8-9d6a-b1a3f62f5b0d",
+      "name": "Deduplicate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "60a17fe6-8c95-4e5d-9f53-e780e71397b0",
+              "name": "run_date",
+              "value": "={{ new Date().toISOString().slice(0,10) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2112,
+        -624
+      ],
+      "id": "5000d506-7706-479c-9cca-f9c2d38908f1",
+      "name": "Write Cleaned"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        -624
+      ],
+      "id": "21bbec8e-db87-4c43-b103-67a8bef5c9ec",
+      "name": "Convert to File"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Check for Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Results": {
+      "main": [
+        [
+          {
+            "node": "Extract Sensors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iterate over each sensor.": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch it!": {
+      "main": [
+        []
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Daily each Sensor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Results1": {
+      "main": [
+        [
+          {
+            "node": "Flatten",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Iterate over each sensor.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily each Sensor": {
+      "main": [
+        [
+          {
+            "node": "Check for Results1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Date": {
+      "main": [
+        [
+          {
+            "node": "Build Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Pages": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Sensors": {
+      "main": [
+        [
+          {
+            "node": "Iterate over each sensor.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next Page": {
+      "main": [
+        [
+          {
+            "node": "Iterate over each sensor.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Cleaned": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Write Cleaned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "12c0de3b-ee58-4947-ad12-31ca9a86b73b",
+  "meta": {
+    "instanceId": "bea1d0a7bb238d45ea919d8bead9a7ad84f217d42f29cd0301b74d4db1847b74"
+  },
+  "id": "248vU47PBnv2tUua",
+  "tags": []
+}
